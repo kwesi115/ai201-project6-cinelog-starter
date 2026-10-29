@@ -68,4 +68,31 @@ The test passes with `pytest tests/test_watchlist.py -v` and with the full suite
 
 ## Comment 6: Rebase onto main (UUID film IDs)
 
+Rebased `feature/watchlist` onto `origin/main` with `git rebase origin/main`. `origin/main` contains `57ec3f9 refactor: migrate film IDs from integer to UUID`, which changed `Film.id`, `CollectionEntry.film_id`, and `WatchlistEntry.film_id` from `db.Integer` to `db.String(36)` in `models.py`. The pre-rebase HEAD was `67dfb5c`.
+
+Conflicts:
+
+- `models.py`, while replaying the commit that added the watchlist model and endpoint. That commit had added `index=True` to `WatchlistEntry.film_id` on the same line that main changed to `db.String(36)`. Resolved by keeping both changes: `db.Column(db.String(36), db.ForeignKey("film.id"), nullable=False, index=True)`.
+
+That was the only conflict. The other 11 commits, including the `public=False` change in `models.py`, replayed cleanly. After the rebase, `git diff` between the old and new branch tips showed only main's UUID refactor in `models.py`.
+
+Changes after the rebase for UUIDs:
+
+- `WatchlistEntry.film_id` was already `db.String(36)` from main's refactor, so the model needed no further change.
+- `services/watchlist_service.py`: the `add_to_watchlist()` docstring said `film_id (int)`. Changed to `film_id (str): UUID of the film.`, matching `collection_service.py`.
+- `routes/watchlist/watchlist.py`: the `add_film()` docstring said `Body: { "film_id": <int> }`. Changed to `"<uuid>"`, matching `routes/collection.py`. The route reads `film_id` from the JSON body, so there was no URL converter to change.
+- `tests/test_watchlist.py`: no change needed. The nonexistent film test already uses the UUID-format ID `"00000000-0000-0000-0000-000000000000"`, the same one `test_collection.py` uses on main.
+- Deleted the local `instance/cinelog.db` (gitignored) because it still had the integer schema, then reran `python seed.py`.
+
+Verification:
+
+- `grep` for `(int)`, `<int>`, `<int:`, and `db.Integer` on `film_id` in the watchlist service, route, test, and `models.py` returned zero results.
+- `pytest tests/ -v`: 7 passed.
+- With the app running, `POST /watchlist/<user_id>/add` with two seeded film UUIDs returned `201` for each with `"public": false`, a repeat POST returned `409`, and `GET /watchlist/<user_id>` returned both films with UUID IDs, newest first.
+- `git log --merges origin/main..HEAD` printed nothing, so the branch history is linear with no merge commits.
+
 ## AI Usage
+
+I used Claude Code to gather context from the codebase for Comments 4 and 5 (where `public` is set and used, how sorting works, and what each sort option would take to implement) and to stress-test my drafts by pointing out counterarguments and tradeoffs I had not addressed.
+
+What I changed as a result: [TODO]
