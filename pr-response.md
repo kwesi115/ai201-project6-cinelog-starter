@@ -1,6 +1,23 @@
 # PR Response: feat: add watchlist feature
 
-## PR Description
+## AI Usage
+
+I used Claude Code to gather context from the codebase for Comments 4 and 5 (where `public` is set and used, how sorting works, and what each sort option would take to implement) and to stress-test my drafts by pointing out counterarguments and tradeoffs I had not addressed.
+
+What I changed as a result: [TODO]
+
+Other ways I used Claude Code in this project:
+
+- Setup audit: checked my fork, branches, virtual environment, `.gitignore`, app startup, and tests. It found that my fork was missing `feature/watchlist`, and pushed the branch and committed `.gitignore`.
+- Orientation: summarized how `add_to_collection()` handles naming, missing films, and duplicates, and the fixture and assertion patterns in `tests/test_collection.py`, so I could compare them against my own reading.
+- Comment 1: ran the project-wide search for `save_to_watchlist` and made the rename.
+- Comment 2: wrote the duplicate check in `add_to_watchlist()`, the `AlreadyInWatchlistError` class, and the 409 handling in the route, at my request, following the `add_to_collection()` pattern. It also ran the manual double-add check.
+- Comment 3: wrote `tests/test_watchlist.py` from the pattern in `test_collection.py`.
+- Comments 4 and 5: implemented the code changes for my positions (`public=False` default, newest-first sort) and their tests. The written responses are my own.
+- Comment 6: ran the rebase onto `origin/main`, resolved the `models.py` conflict, updated the remaining integer ID references, and checked the result with grep, pytest, and curl.
+- Found and fixed the 500 error on `POST /watchlist/<user_id>/add` for a nonexistent film.
+- Drafted the factual notes for Comments 1, 2, 3, and 6 and the PR description below, which I reviewed.
+- Rewrote the commit history with interactive rebase and checked every commit message against the Conventional Commits format.
 
 ## Comment 1: Rename save_to_watchlist() to add_to_watchlist()
 
@@ -50,6 +67,8 @@ Added `tests/test_watchlist.py` with `test_add_to_watchlist_nonexistent_film_rai
 
 The test passes with `pytest tests/test_watchlist.py -v` and with the full suite `pytest tests/ -v`.
 
+Related fix: the service raised `FilmNotFoundError` correctly, but `POST /watchlist/<user_id>/add` did not catch it, so a nonexistent film returned a 500 error. The route now returns `404` with `{"error": "No film found with id '<film_id>'"}`, the same way the collection route does.
+
 ## Comment 4: Default watchlist visibility (public=True)
 
 **My position:** I would change the default visibility to `public=False`, making watchlists private unless users explicitly choose to share them.
@@ -91,8 +110,69 @@ Verification:
 - With the app running, `POST /watchlist/<user_id>/add` with two seeded film UUIDs returned `201` for each with `"public": false`, a repeat POST returned `409`, and `GET /watchlist/<user_id>` returned both films with UUID IDs, newest first.
 - `git log --merges origin/main..HEAD` printed nothing, so the branch history is linear with no merge commits.
 
-## AI Usage
+## PR Description
 
-I used Claude Code to gather context from the codebase for Comments 4 and 5 (where `public` is set and used, how sorting works, and what each sort option would take to implement) and to stress-test my drafts by pointing out counterarguments and tradeoffs I had not addressed.
+### What this PR does
 
-What I changed as a result: [TODO]
+Adds a watchlist to CineLog: a list of films a user wants to watch later, separate from their collection of films they have already watched. `POST /watchlist/<user_id>/add` saves a film to the user's watchlist, and `GET /watchlist/<user_id>` returns the films on it. Adding a film that is already on the watchlist is rejected, and adding a film that does not exist returns a 404.
+
+### Design decisions
+
+**Default visibility: private (`public=False`).** New watchlist entries are private unless the user chooses to share them. Users may add films just to keep track of what they want to watch, without wanting to share their interests, so private by default gives them control over their information and makes sharing an intentional choice. The tradeoff is less discoverability and interaction than a public default would give. I decided user control over privacy should come first.
+
+**Sort order: date added, newest first.** `GET /watchlist/<user_id>` returns the most recently added films first. A watchlist is mainly for keeping track of films a user intends to watch, and newest first lets them find films they just saved, for example after a recommendation. Alphabetical order is more predictable for finding a specific title in a long list, but I decided recent activity better fits the main use case. Alphabetical sorting could be added later as an option rather than the default.
+
+### How to test manually
+
+These steps use a bash shell (Git Bash on Windows, or Terminal on macOS/Linux).
+
+1. Create and activate a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/Scripts/activate   # Windows (Git Bash)
+   source .venv/bin/activate       # macOS/Linux
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Start from a fresh database and seed it. If you have an `instance/cinelog.db` from before the UUID refactor, deleting it is required. Note the `user_id` that `seed.py` prints.
+   ```bash
+   rm -f instance/cinelog.db
+   python seed.py
+   ```
+4. Start the app (it runs at `http://127.0.0.1:5000`):
+   ```bash
+   python app.py
+   ```
+5. In a second terminal, set the user ID from step 3 and look up two film UUIDs:
+   ```bash
+   USER_ID=<user_id from seed.py>
+   curl -s http://127.0.0.1:5000/films/
+   FILM_A=<id of "Alien">
+   FILM_B=<id of "Spirited Away">
+   ```
+6. Add the first film. Expect `201` and `"public": false`:
+   ```bash
+   curl -i -X POST -H "Content-Type: application/json" -d "{\"film_id\": \"$FILM_A\"}" http://127.0.0.1:5000/watchlist/$USER_ID/add
+   ```
+7. Add the second film. Expect `201`:
+   ```bash
+   curl -i -X POST -H "Content-Type: application/json" -d "{\"film_id\": \"$FILM_B\"}" http://127.0.0.1:5000/watchlist/$USER_ID/add
+   ```
+8. Add the first film again. Expect `409` with `{"error": "Film '<id>' is already in this user's watchlist"}`:
+   ```bash
+   curl -i -X POST -H "Content-Type: application/json" -d "{\"film_id\": \"$FILM_A\"}" http://127.0.0.1:5000/watchlist/$USER_ID/add
+   ```
+9. Add a film that does not exist. Expect `404` with `{"error": "No film found with id '00000000-0000-0000-0000-000000000000'"}`:
+   ```bash
+   curl -i -X POST -H "Content-Type: application/json" -d '{"film_id": "00000000-0000-0000-0000-000000000000"}' http://127.0.0.1:5000/watchlist/$USER_ID/add
+   ```
+10. Get the watchlist. Expect `200` with two films: Spirited Away first (added most recently), then Alien, each with `"public": false`:
+    ```bash
+    curl -i http://127.0.0.1:5000/watchlist/$USER_ID
+    ```
+11. Stop the app with Ctrl+C and run the tests. Expect all 7 to pass:
+    ```bash
+    pytest tests/ -v
+    ```
