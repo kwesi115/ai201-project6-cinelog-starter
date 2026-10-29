@@ -2,7 +2,7 @@
 
 ## AI Usage
 
-I used Claude Code to gather context from the codebase for Comments 4 and 5 (where `public` is set and used, how sorting works, and what each sort option would take to implement) and to stress-test my drafts by pointing out counterarguments and tradeoffs I had not addressed.
+For Comments 4 and 5, I asked Claude Code to gather context from the codebase (where `public` is set and used, how sorting works, and what each sort option would take to implement) and to stress-test my drafts by pointing out counterarguments and tradeoffs I had not addressed. The positions and the written reasoning are my own.
 
 What I changed as a result: I kept both positions (private by default, newest first) and revised my wording between the first and final drafts. In Comment 4, I rephrased how users could still share their watchlists and how the tradeoff with discoverability is weighed. In Comment 5, I reframed alphabetical sorting as a possible additional option rather than a vague future feature. I also decided to implement both positions in code, with tests: the `public=False` default and the newest-first sort. The review raised points I did not change my drafts to address: that `public` is not yet enforced by any endpoint, that there is no endpoint yet for making a watchlist public, and that alphabetical order was my original implementation's choice rather than the maintainer's argument.
 
@@ -176,3 +176,9 @@ These steps use a bash shell (Git Bash on Windows, or Terminal on macOS/Linux).
     ```bash
     pytest tests/ -v
     ```
+
+## Git Log
+
+`git log --oneline` on `feature/watchlist` after rewriting the history with interactive rebase. Every commit follows Conventional Commits and there are no merge commits.
+
+![git log --oneline on feature/watchlist](image.png)
