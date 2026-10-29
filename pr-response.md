@@ -52,7 +52,19 @@ The test passes with `pytest tests/test_watchlist.py -v` and with the full suite
 
 ## Comment 4: Default watchlist visibility (public=True)
 
+**My position:** I would change the default visibility to `public=False`, making watchlists private unless users explicitly choose to share them.
+
+**Reasoning:** CineLog users may add films to their watchlists simply to keep track of what they want to watch, without necessarily wanting to share their interests with others. Setting the default to private gives users greater control over their information and avoids assuming that every user wants their activity to be publicly visible. Users can still choose to make their watchlists public when they want to share recommendations or connect with other film enthusiasts.
+
+**Tradeoff acknowledged:** I recognize that keeping `public=True` as the default could encourage more interaction on CineLog by making watchlists easier to discover and explore. However, I believe user control over privacy should take priority over maximizing discoverability by default. Making watchlists private initially still allows users to participate in the social aspects of CineLog while ensuring that sharing is an intentional choice.
+
 ## Comment 5: Watchlist sort order
+
+**My position:** I would sort watchlists by date added, with the most recently added films appearing first.
+
+**Reasoning:** A watchlist is primarily intended to help users keep track of films they want to watch. Displaying the newest additions first allows users to quickly find films they recently saved, especially after receiving recommendations or discovering new releases. This ordering also makes the list more responsive to users' recent activity, rather than organizing films solely by their titles.
+
+**Engagement with the reviewer's point:** I understand the argument for alphabetical ordering because it creates a predictable structure and can make specific films easier to find, particularly as a watchlist grows. However, alphabetical ordering prioritizes locating films by title, whereas date-added ordering prioritizes the user's most recent activity. For CineLog's watchlist feature, I believe the latter better supports the primary use case of tracking films a user intends to watch. If users eventually need more flexibility, alphabetical sorting could be introduced as an additional option rather than the default.
 
 ## Comment 6: Rebase onto main (UUID film IDs)
 
